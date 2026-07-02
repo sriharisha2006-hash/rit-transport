@@ -1110,7 +1110,26 @@ function switchView(viewName) {
 async function checkViewSession(role) {
   const { data } = await sb.auth.getSession();
   if (data.session) {
-    enterRoleApp(role, data.session.user.email);
+    const email = data.session.user.email;
+    if (role === 'admin' && email !== 'sri.rit.transport@gmail.com') {
+      await sb.auth.signOut();
+      showRoleLogin(role);
+      const errorEl = document.getElementById('adminLoginError');
+      if (errorEl) {
+        errorEl.textContent = "Unauthorized: Driver account cannot access the Admin panel.";
+        errorEl.style.display = 'block';
+      }
+    } else if (role === 'driver' && email === 'sri.rit.transport@gmail.com') {
+      await sb.auth.signOut();
+      showRoleLogin(role);
+      const errorEl = document.getElementById('driverLoginError');
+      if (errorEl) {
+        errorEl.textContent = "Unauthorized: Admin account cannot access the Driver console.";
+        errorEl.style.display = 'block';
+      }
+    } else {
+      enterRoleApp(role, email);
+    }
   } else {
     showRoleLogin(role);
   }
@@ -1171,11 +1190,24 @@ async function handleSignIn(role) {
     return;
   }
 
+  const userEmail = data.user.email;
+  if (role === 'admin' && userEmail !== 'sri.rit.transport@gmail.com') {
+    await sb.auth.signOut();
+    errorEl.textContent = "Unauthorized: Driver account cannot access the Admin panel.";
+    errorEl.style.display = 'block';
+    return;
+  } else if (role === 'driver' && userEmail === 'sri.rit.transport@gmail.com') {
+    await sb.auth.signOut();
+    errorEl.textContent = "Unauthorized: Admin account cannot access the Driver console.";
+    errorEl.style.display = 'block';
+    return;
+  }
+
   // Clear inputs
   emailEl.value = '';
   passwordEl.value = '';
   
-  enterRoleApp(role, data.user.email);
+  enterRoleApp(role, userEmail);
 }
 
 async function handleSignOut(role) {
