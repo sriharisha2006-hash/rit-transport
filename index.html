@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#12213D">
+<link rel="manifest" href="manifest.json">
+<!-- Apple Touch Icon for iOS installability -->
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>RIT Transport Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --navy: #12213D;
+    --navy-2: #1B2E52;
+    --amber: #F5A623;
+    --amber-hover: #D98E16;
+    --slate: #5B6478;
+    --paper: #F6F5F1;
+    --card: #FFFFFF;
+    --line: #E4E1D8;
+    --ink: #1B2033;
+    --ontime: #1F7A5C;
+    --danger: #C0392B;
+    --glass-bg: rgba(18, 33, 61, 0.75);
+    --glass-border: rgba(255, 255, 255, 0.15);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    color: var(--ink);
+    background-color: var(--paper);
+    min-height: 100vh;
+    transition: background 0.3s ease;
+  }
+
+  /* Full Screen College Background Wrapper */
+  .bg-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background-image: linear-gradient(rgba(18, 33, 61, 0.8), rgba(18, 33, 61, 0.85)), url('rit_college.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: opacity 0.5s ease;
+  }
+
+  /* View Containers */
+  .view-container {
+    display: none;
+    min-height: 100vh;
+    width: 100%;
+    animation: fadeIn 0.3s ease-in-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Common Premium Styles */
+  button {
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .btn-primary {
+    background: var(--amber);
+    color: var(--navy);
+  }
+  .btn-primary:hover {
+    background: var(--amber-hover);
+    transform: translateY(-1px);
+  }
+  .btn-ghost {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+  .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+  .btn-danger {
+    background: #FBE7E4;
+    color: var(--danger);
+  }
+  .btn-danger:hover {
+    background: #f7d5d0;
+  }
+  .btn-save {
+    background: var(--ontime);
+    color: #fff;
+  }
+  .btn-save:hover {
+    background: #186149;
+  }
+
+  /* Back Button Nav */
+  .nav-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 24px;
+    background: var(--navy);
+    color: #fff;
+    border-bottom: 2px solid var(--amber);
+  }
+  .nav-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .nav-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin: 0;
+  }
+  .back-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .back-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  /* Toast Notification */
+  .save-toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--navy);
+    color: #fff;
+    padding: 12px 22px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    opacity: 0;
+    transition: opacity .2s, transform .2s;
+    pointer-events: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    z-index: 9999;
+  }
+  .save-toast.show {
+    opacity: 1;
+    transform: translate(-50%, -5px);
+  }
+
+  /* ==========================================================================
+     1. LANDING VIEW STYLES
+     ========================================================================== */
+  #landingView {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .landing-hero {
+    text-align: center;
+    color: #fff;
+    margin-bottom: 40px;
+  }
+  .landing-hero .badge {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--amber);
+    font-size: 14px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .landing-hero h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(32px, 8vw, 52px);
+    margin: 0 0 10px;
+    letter-spacing: 0.02em;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  .landing-hero p {
+    font-size: clamp(14px, 4vw, 18px);
+    color: #E2E8F0;
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 1.5;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  }
+  .role-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    width: 100%;
+    max-width: 1000px;
+    perspective: 1000px;
+  }
+  .role-card-opt {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 35px 25px;
+    text-align: center;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .role-card-opt:hover {
+    transform: translateY(-8px);
+    border-color: rgba(245, 166, 35, 0.5);
+    box-shadow: 0 12px 40px rgba(245, 166, 35, 0.15);
+  }
+  .role-icon {
+    width: 70px;
+    height: 70px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--amber);
+  }
+  .role-card-opt:hover .role-icon {
+    background: var(--amber);
+    color: var(--navy);
+    transform: scale(1.05);
+  }
+  .role-card-opt h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 22px;
+    margin: 0 0 10px;
+    letter-spacing: 0.03em;
+  }
+  .role-card-opt p {
+    font-size: 14px;
+    color: #B7C0D8;
+    line-height: 1.5;
+    margin: 0;
+    flex-grow: 1;
+  }
+
+  /* ==========================================================================
+     2. STUDENT VIEW STYLES
+     ========================================================================== */
+  #studentView {
+    flex-direction: column;
+  }
+  .student-banner {
+    background: var(--navy);
+    background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0 2px, transparent 2px 40px);
+    color: #fff;
+    padding: 35px 20px 25px;
+    text-align: center;
+  }
+  .student-banner h2 {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(24px, 5vw, 36px);
+    margin: 0 0 5px;
+    letter-spacing: 0.02em;
+  }
+  .student-banner p {
+    color: #B7C0D8;
+    font-size: 14px;
+    margin: 0;
+  }
+  .student-search-container {
+    max-width: 720px;
+    margin: -20px auto 0;
+    padding: 0 16px;
+    width: 100%;
+    z-index: 10;
+  }
+  .search-wrap {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(18,33,61,0.12);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .search-wrap input {
+    border: none;
+    outline: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    flex: 1;
+    background: transparent;
+  }
+  .search-wrap input::placeholder { color: #9AA1B4; }
+  .search-icon { color: var(--slate); font-size: 18px; }
+
+  .student-main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+    width: 100%;
+  }
+  .note {
+    background: #FDF0D5;
+    border: 1px solid #EFD9A6;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 13px;
+    color: #6B5216;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--slate);
+    margin: 0 0 12px 2px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .route-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 14px;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .route-card:hover {
+    box-shadow: 0 6px 18px rgba(18,33,61,0.08);
+  }
+  .route-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .route-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    color: #fff;
+    background: var(--navy-2);
+    border-radius: 6px;
+    padding: 6px 9px;
+    min-width: 55px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .route-info { flex: 1; min-width: 0; }
+  .route-name { font-weight: 600; font-size: 16px; margin: 0 0 3px; }
+  .route-meta { font-size: 12.5px; color: var(--slate); margin: 0; }
+  .depart-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--navy);
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .depart-label {
+    font-size: 10px;
+    color: var(--ontime);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    text-align: right;
+  }
+  .chevron {
+    color: var(--slate);
+    font-size: 14px;
+    transition: transform .2s ease;
+    flex-shrink: 0;
+    margin-left: 5px;
+  }
+  .route-card.open .chevron { transform: rotate(180deg); }
+  .stops {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-top: 1px dashed var(--line);
+  }
+  .route-card.open .stops { max-height: 900px; }
+  .stop-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px 10px 24px;
+    font-size: 13.5px;
+    position: relative;
+  }
+  .stop-row::before {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--line);
+  }
+  .stop-row:first-child::before { top: 50%; }
+  .stop-row:last-child::before { bottom: 50%; }
+  .stop-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--amber);
+    border: 2px solid var(--card);
+    outline: 1px solid var(--line);
+    flex-shrink: 0;
+    z-index: 1;
+    margin-left: 5px;
+  }
+  .stop-name { flex: 1; color: var(--ink); }
+  .stop-name.match { background: #FDF0D5; border-radius: 4px; padding: 1px 5px; margin-left: -5px; font-weight: 600; }
+  .stop-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    color: var(--slate);
+    flex-shrink: 0;
+  }
+  .empty {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--slate);
+  }
+  .empty-title { font-family: 'Oswald', sans-serif; font-size: 18px; color: var(--ink); margin-bottom: 6px; }
+
+  .live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #FBE7E4;
+    color: #C0392B;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    padding: 3px 8px;
+    border-radius: 20px;
+    margin-top: 5px;
+  }
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #C0392B;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(192, 57, 43, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0); }
+  }
+  .live-map {
+    height: 220px;
+    border-top: 1px dashed var(--line);
+    border-bottom: 1px dashed var(--line);
+  }
+  .live-updated {
+    font-size: 11px;
+    color: var(--slate);
+    padding: 8px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    background: #FAFAF7;
+  }
+  .student-footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 12px;
+    color: var(--slate);
+    font-family: 'JetBrains Mono', monospace;
+    border-top: 1px solid var(--line);
+    background: #FAFAF7;
+    margin-top: auto;
+  }
+
+  /* ==========================================================================
+     3. LOGIN SCREEN COMMON STYLE (Driver & Admin overlaying the background image)
+     ========================================================================== */
+  .auth-overlay {
+    min-height: calc(100vh - 60px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .login-box {
+    width: 100%;
+    max-width: 380px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: 0 8px 32px 0 rgba(18, 33, 61, 0.25);
+    color: #fff;
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  .login-box h2 {
+    font-family: 'Oswald', sans-serif;
+    margin: 0 0 6px;
+    font-size: 24px;
+    letter-spacing: 0.02em;
+    color: var(--amber);
+  }
+  .login-box p {
+    color: #B7C0D8;
+    font-size: 13.5px;
+    margin: 0 0 20px;
+  }
+  .field {
+    margin-bottom: 16px;
+    text-align: left;
+  }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: #B7C0D8;
+    margin-bottom: 6px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .field input, .field select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    font-size: 14.5px;
+    font-family: 'Inter', sans-serif;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    transition: all 0.2s ease;
+  }
+  .field input::placeholder {
+    color: rgba(255,255,255,0.4);
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: var(--amber);
+    background: rgba(255, 255, 255, 0.12);
+  }
+  .login-error {
+    color: #ff6b6b;
+    font-size: 13px;
+    margin-top: 12px;
+    display: none;
+    padding: 8px 12px;
+    background: rgba(255, 107, 107, 0.15);
+    border-radius: 6px;
+    border: 1px dashed rgba(255, 107, 107, 0.3);
+  }
+
+  /* ==========================================================================
+     4. DRIVER CONSOLE STYLES
+     ========================================================================== */
+  #driverView {
+    flex-direction: column;
+  }
+  .driver-dashboard {
+    max-width: 480px;
+    margin: 40px auto;
+    padding: 0 16px 60px;
+    width: 100%;
+  }
+  .driver-panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(18, 33, 61, 0.05);
+  }
+  .route-picker {
+    margin-bottom: 24px;
+    text-align: left;
+  }
+  .route-picker select {
+    background: #fff;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  .status-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--slate);
+    display: inline-block;
+    margin-right: 6px;
+  }
+  .status-dot.live {
+    background: var(--danger);
+    box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.5);
+    animation: driverPulse 1.5s infinite;
+  }
+  @keyframes driverPulse {
+    0% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(192, 57, 43, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0); }
+  }
+  .status-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px;
+    letter-spacing: .05em;
+    color: var(--slate);
+    margin-bottom: 24px;
+    font-weight: 600;
+  }
+  .big-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 700;
+    font-family: 'Oswald', sans-serif;
+    letter-spacing: .05em;
+    border: none;
+    text-transform: uppercase;
+  }
+  .big-btn.start { background: var(--ontime); color: #fff; }
+  .big-btn.start:hover { background: #186149; }
+  .big-btn.stop { background: var(--danger); color: #fff; }
+  .big-btn.stop:hover { background: #a83226; }
+  .coords {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    color: var(--slate);
+    margin-top: 16px;
+    background: #FAFAF7;
+    padding: 8px;
+    border-radius: 6px;
+  }
+
+  /* ==========================================================================
+     5. ADMIN DASHBOARD STYLES (Split Layout for desktop)
+     ========================================================================== */
+  #adminView {
+    flex-direction: column;
+  }
+  .admin-dashboard {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 30px 16px 60px;
+    width: 100%;
+  }
+  .admin-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  @media(min-width: 800px) {
+    .admin-grid {
+      grid-template-columns: 350px 1fr;
+    }
+  }
+  .admin-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .admin-panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 16px rgba(18,33,61,0.03);
+  }
+  .admin-panel h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    margin: 0 0 12px;
+    letter-spacing: 0.02em;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 8px;
+    color: var(--navy);
+  }
+  .admin-panel select, .admin-panel input {
+    background: #fff;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  .admin-panel select:focus, .admin-panel input:focus {
+    border-color: var(--amber);
+    outline: none;
+  }
+  .row2 {
+    display: flex;
+    gap: 10px;
+  }
+  .row2 .field { flex: 1; }
+
+  /* Admin Stop Rows */
+  .stop-row-admin {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #F0EEE7;
+    background: var(--card);
+  }
+  .stop-row-admin input {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+  }
+  .stop-row-admin input.name { flex: 1; min-width: 0; }
+  .stop-row-admin input.time { width: 95px; font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+  .icon-btn {
+    border: none;
+    background: transparent;
+    font-size: 15px;
+    padding: 6px 8px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .icon-btn:hover {
+    background: rgba(0,0,0,0.05);
+  }
+  .add-stop-row-admin {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #FAFAF7;
+    border-bottom: 1px dashed var(--line);
+  }
+  .add-stop-row-admin input {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  .add-stop-row-admin input.name { flex: 1; }
+  .add-stop-row-admin input.time { width: 95px; font-family: 'JetBrains Mono', monospace; }
+  .route-actions-admin {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #FAFAF7;
+  }
+
+  /* Shared Utility class for hidden items */
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- Dynamic Full Screen Background Wrapper -->
+<div class="bg-wrapper" id="portalBackground"></div>
+
+<!-- Unified Save Toast -->
+<div class="save-toast" id="toast">Saved</div>
+
+
+<!-- ==========================================================================
+     A. MAIN PORTAL LANDING PAGE
+     ========================================================================== -->
+<div id="landingView" class="view-container" style="display: flex;">
+  <div class="landing-hero">
+    <span class="badge">Rajalakshmi Institute of Technology</span>
+    <h1>RIT Transport Hub</h1>
+    <p>Select your dashboard to search student shuttles, watch live bus locations, or manage routes and assignments.</p>
+
+  </div>
+
+  <div class="role-grid">
+    <!-- Card 1: Student -->
+    <div class="role-card-opt" onclick="switchView('student')">
+      <div class="role-icon">&#128652;</div>
+      <h3>Student Shuttle</h3>
+      <p>Search bus routes, find your pickup time, and view live locations in real-time on the Leaflet map.</p>
+    </div>
+
+    <!-- Card 2: Driver -->
+    <div class="role-card-opt" onclick="switchView('driver')">
+      <div class="role-icon">&#128721;</div>
+      <h3>Driver Console</h3>
+      <p>Log in and stream your live GPS location back to the student maps during your daily route.</p>
+    </div>
+
+    <!-- Card 3: Admin -->
+    <div class="role-card-opt" onclick="switchView('admin')">
+      <div class="role-icon">&#128736;</div>
+      <h3>Admin Panel</h3>
+      <p>Configure routes and timetables, add/edit stops, and map student shuttle driver logins to active routes.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ==========================================================================
+     B. STUDENT VIEW
+     ========================================================================== -->
+<div id="studentView" class="view-container">
+  <header class="nav-header">
+    <div class="nav-left">
+      <button class="back-btn" onclick="switchView('landing')">
+        <span>&larr;</span> Back to Roles
+      </button>
+      <h1 class="nav-title">RIT STUDENT PORTAL</h1>
+    </div>
+    <div style="font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--amber);">STUDENT SHUTTLE</div>
+  </header>
+
+  <div class="student-banner">
+    <h2>Student Shuttle Schedule</h2>
+    <p>Find your pickup stop, route times, and monitor active buses</p>
+  </div>
+
+  <div class="student-search-container">
+    <div class="search-wrap">
+      <span class="search-icon">&#128269;</span>
+      <input id="searchInput" type="text" placeholder="Search a stop, area, or route number&hellip;" autocomplete="off">
+    </div>
+  </div>
+
+  <main class="student-main">
+    <div class="note">
+      Live locations show up automatically. Expand a route card with the <span class="live-badge" style="margin:0;padding:2px 6px;"><span class="live-dot"></span>LIVE</span> badge to view the live GPS map.
+    </div>
+
+    <p class="section-label"><span>Routes</span><span id="countLabel"></span></p>
+
+    <div id="loadingState" class="empty">
+      <div class="empty-title">Loading routes&hellip;</div>
+      <div>Connecting to RIT transport database...</div>
+    </div>
+
+    <div id="errorState" class="empty" style="display:none;">
+      <div class="empty-title">Couldn't load routes</div>
+      <div id="errorDetail">Please check your internet connection and reload.</div>
+    </div>
+
+    <div id="studentRouteList"></div>
+
+    <div id="emptyState" class="empty" style="display:none;">
+      <div class="empty-title">No routes match that search</div>
+      <div>Try searching another stop name, area, or route number.</div>
+    </div>
+  </main>
+
+  <footer class="student-footer">RIT CAMPUS ARRIVAL &middot; 7:40 AM WEEKDAYS</footer>
+</div>
+
+
+<!-- ==========================================================================
+     C. DRIVER VIEW
+     ========================================================================== -->
+<div id="driverView" class="view-container">
+  <header class="nav-header">
+    <div class="nav-left">
+      <button class="back-btn" onclick="switchView('landing')">
+        <span>&larr;</span> Back to Roles
+      </button>
+      <h1 class="nav-title">RIT DRIVER CONSOLE</h1>
+    </div>
+    <div id="driverHeaderSignout" class="hidden">
+      <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="handleSignOut('driver')">Sign Out</button>
+    </div>
+  </header>
+
+  <!-- Driver Auth Page -->
+  <div id="driverLoginView" class="auth-overlay">
+    <div class="login-box">
+      <h2>Driver Sign In</h2>
+      <p>RIT Transport &middot; Stream live bus location</p>
+      <div class="field">
+        <label>Email</label>
+        <input id="driverEmail" type="email" autocomplete="username" placeholder="e.g. r01@rit.edu.in">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="driverPassword" type="password" autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="handleSignIn('driver')">Sign In</button>
+      <div class="login-error" id="driverLoginError"></div>
+    </div>
+  </div>
+
+  <!-- Driver Application View -->
+  <div id="driverAppView" class="hidden">
+    <main class="driver-dashboard">
+      <div class="driver-panel">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--slate);margin-bottom:8px;">
+          LOGGED IN AS: <span id="driverLoggedEmail" style="font-weight:600;"></span>
+        </div>
+
+        <div class="route-picker" id="assignedRouteWrap" style="display:none;">
+          <label style="display:block;font-size:12px;color:var(--slate);margin-bottom:6px;font-weight:600;text-transform:uppercase;">Today's Assigned Route</label>
+          <div id="assignedRouteDisplay" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:7px;font-size:15px;background:#FAFAF7;font-weight:600;"></div>
+        </div>
+
+        <div class="route-picker" id="routePickerWrap" style="display:none;">
+          <label style="display:block;font-size:12px;color:var(--slate);margin-bottom:6px;font-weight:600;text-transform:uppercase;">Select Today's Route</label>
+          <select id="routeSelect" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:7px;font-size:15px;"></select>
+          <div style="font-size:11.5px;color:var(--danger);margin-top:8px;line-height:1.4;">
+            No route is assigned to your account. Select your route manually or contact your administrator.
+          </div>
+        </div>
+
+        <div style="margin:20px 0;">
+          <span class="status-dot" id="statusDot"></span>
+          <span class="status-text" id="statusText">NOT SHARING LOCATION</span>
+        </div>
+
+        <button class="big-btn start" id="toggleBtn" onclick="toggleSharing()">Start Trip</button>
+
+        <div class="coords" id="coordsDisplay">GPS coordinates will appear here when active</div>
+        
+        <div class="note">
+          Keep this page open and running in the foreground while driving. GPS coordinates are uploaded automatically. Tap "End Trip" upon campus arrival so status is cleared.
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+
+<!-- ==========================================================================
+     D. ADMIN VIEW
+     ========================================================================== -->
+<div id="adminView" class="view-container">
+  <header class="nav-header">
+    <div class="nav-left">
+      <button class="back-btn" onclick="switchView('landing')">
+        <span>&larr;</span> Back to Roles
+      </button>
+      <h1 class="nav-title">RIT ADMIN CONTROL</h1>
+    </div>
+    <div id="adminHeaderSignout" class="hidden">
+      <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="handleSignOut('admin')">Sign Out</button>
+    </div>
+  </header>
+
+  <!-- Admin Auth Page -->
+  <div id="adminLoginView" class="auth-overlay">
+    <div class="login-box">
+      <h2>Staff Sign In</h2>
+      <p>RIT Transport Management Panel</p>
+      <div class="field">
+        <label>Email</label>
+        <input id="adminEmail" type="email" autocomplete="username" placeholder="admin@rit.edu.in">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="adminPassword" type="password" autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="handleSignIn('admin')">Sign In</button>
+      <div class="login-error" id="adminLoginError"></div>
+    </div>
+  </div>
+
+  <!-- Admin Application View -->
+  <div id="adminAppView" class="hidden">
+    <main class="admin-dashboard">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#fff;margin-bottom:18px;text-align:right;">
+        ADMIN: <span id="adminLoggedEmail" style="font-weight:600;color:var(--amber);"></span>
+      </div>
+
+      <div class="admin-grid">
+        <!-- Sidebar Controls -->
+        <div class="admin-sidebar">
+          <div class="admin-panel">
+            <h3>Add New Route</h3>
+            <div class="field">
+              <label>Route ID (e.g. R-30)</label>
+              <input id="newRouteId" placeholder="R-30">
+            </div>
+            <div class="field">
+              <label>Route Name (e.g. Ambattur)</label>
+              <input id="newRouteName" placeholder="Area name">
+            </div>
+            <button class="btn btn-primary" style="width:100%;" onclick="addRoute()">Add Route</button>
+          </div>
+
+          <div class="admin-panel">
+            <h3>Assign Bus Login to Route</h3>
+            <p style="font-size:11.5px;color:var(--slate);margin:-6px 0 14px;line-height:1.4;">
+              Link a driver login email or User ID (UUID) from Supabase Authentication to an active route.
+            </p>
+            <div class="field">
+              <label>Driver Email or User ID (UUID)</label>
+              <input id="driverUserId" placeholder="r01@rit.edu.in or UUID...">
+            </div>
+            <div class="field">
+              <label>Assign Route</label>
+              <select id="driverRouteSelect" style="width:100%;"></select>
+            </div>
+            <button class="btn btn-primary" style="width:100%;" onclick="assignDriverRoute()">Assign Route</button>
+            
+            <h4 style="font-size:11.5px;margin:20px 0 6px;text-transform:uppercase;color:var(--slate);letter-spacing:0.05em;">Current Driver Mapping</h4>
+            <div id="assignmentsList" style="max-height: 200px; overflow-y: auto;"></div>
+          </div>
+        </div>
+
+        <!-- Main Workspace: Routes and Stops Manager -->
+        <div style="display:flex; flex-direction:column; gap:20px;">
+          <div class="admin-panel">
+            <h3 style="margin-bottom:15px;">Manage Shuttle Routes & Timetable Stops</h3>
+            <div class="section-label">All Active/Inactive Routes</div>
+            <div id="adminRouteList"></div>
+            <div id="adminEmptyState" class="empty" style="display:none;">
+              No routes found. Create a route using the side panel to get started.
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+
+<!-- ==========================================================================
+     E. APPLICATION SCRIPTS
+     ========================================================================== -->
+<script>
+const SUPABASE_URL = "https://gfhwnoujoftllkdfqnig.supabase.co";
+const SUPABASE_KEY = "sb_publishable_JL3x_L2WT1R4-iyHqj_n8A_0smkp0Yk";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// State tracking
+let currentView = 'landing';
+let routes = [];
+let liveData = {};
+let mapInstances = {};
+let lastLiveSignature = '';
+let livePollingInterval = null;
+
+// Driver console variables
+let watchId = null;
+let sharing = false;
+let selectedRoute = null;
+
+// ==========================================================================
+// TOAST UTILITY
+// ==========================================================================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg || 'Saved';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+// ==========================================================================
+// ROUTING / VIEW NAVIGATION
+// ==========================================================================
+function switchView(viewName) {
+  // Hide current view container
+  document.getElementById(currentView + 'View').style.display = 'none';
+
+  // If leaving student view, stop polling live locations
+  if (currentView === 'student' && livePollingInterval) {
+    clearInterval(livePollingInterval);
+    livePollingInterval = null;
+  }
+
+  // Set new view
+  currentView = viewName;
+  const viewEl = document.getElementById(viewName + 'View');
+  
+  if (viewName === 'landing') {
+    viewEl.style.display = 'flex';
+    document.getElementById('portalBackground').style.opacity = '1';
+  } else {
+    viewEl.style.display = 'flex';
+    // For other dashboards, let background hide or show based on dashboard styling
+    if (viewName === 'student') {
+      document.getElementById('portalBackground').style.opacity = '0'; // Keep student clean
+      studentInit();
+    } else if (viewName === 'driver') {
+      document.getElementById('portalBackground').style.opacity = '0.5'; // Dim background
+      checkViewSession('driver');
+    } else if (viewName === 'admin') {
+      document.getElementById('portalBackground').style.opacity = '0.6'; // Dim background
+      checkViewSession('admin');
+    }
+  }
+}
+
+// ==========================================================================
+// SUPABASE AUTH UTILITY
+// ==========================================================================
+async function checkViewSession(role) {
+  const { data } = await sb.auth.getSession();
+  if (data.session) {
+    enterRoleApp(role, data.session.user.email);
+  } else {
+    showRoleLogin(role);
+  }
+}
+
+function showRoleLogin(role) {
+  if (role === 'driver') {
+    document.getElementById('driverLoginView').classList.remove('hidden');
+    document.getElementById('driverAppView').classList.add('hidden');
+    document.getElementById('driverHeaderSignout').classList.add('hidden');
+    document.getElementById('portalBackground').style.opacity = '0.8';
+  } else if (role === 'admin') {
+    document.getElementById('adminLoginView').classList.remove('hidden');
+    document.getElementById('adminAppView').classList.add('hidden');
+    document.getElementById('adminHeaderSignout').classList.add('hidden');
+    document.getElementById('portalBackground').style.opacity = '0.8';
+  }
+}
+
+function enterRoleApp(role, email) {
+  if (role === 'driver') {
+    document.getElementById('driverLoginView').classList.add('hidden');
+    document.getElementById('driverAppView').classList.remove('hidden');
+    document.getElementById('driverHeaderSignout').classList.remove('hidden');
+    document.getElementById('driverLoggedEmail').textContent = email;
+    document.getElementById('portalBackground').style.opacity = '0.3';
+    driverInit(email);
+  } else if (role === 'admin') {
+    document.getElementById('adminLoginView').classList.add('hidden');
+    document.getElementById('adminAppView').classList.remove('hidden');
+    document.getElementById('adminHeaderSignout').classList.remove('hidden');
+    document.getElementById('adminLoggedEmail').textContent = email;
+    document.getElementById('portalBackground').style.opacity = '0.4';
+    adminInit();
+  }
+}
+
+async function handleSignIn(role) {
+  const emailEl = document.getElementById(role + 'Email');
+  const passwordEl = document.getElementById(role + 'Password');
+  const errorEl = document.getElementById(role + 'LoginError');
+
+  const email = emailEl.value.trim();
+  const password = passwordEl.value;
+
+  errorEl.style.display = 'none';
+
+  if (!email || !password) {
+    errorEl.textContent = "Please fill in all fields.";
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) {
+    errorEl.textContent = error.message;
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  // Clear inputs
+  emailEl.value = '';
+  passwordEl.value = '';
+  
+  enterRoleApp(role, data.user.email);
+}
+
+async function handleSignOut(role) {
+  if (role === 'driver' && sharing) {
+    await stopSharing();
+  }
+  await sb.auth.signOut();
+  showRoleLogin(role);
+}
+
+// Check session on startup and pre-fill credentials if user returns
+(async () => {
+  const { data } = await sb.auth.getSession();
+  // Auto-route on reload isn't strictly necessary but helpful if they are on a specific route
+  // We stay on landing view initially, they will auto-skip login when they click Driver or Admin if they have session
+})();
+
+
+// ==========================================================================
+// 1. STUDENT VIEW LOGIC
+// ==========================================================================
+async function studentInit() {
+  await loadStudentRoutes();
+  livePollingInterval = setInterval(pollLive, 8000);
+}
+
+function timeAgo(iso) {
+  const sec = Math.round((Date.now() - new Date(iso).getTime())/1000);
+  if(sec < 60) return `Updated ${sec}s ago`;
+  const min = Math.round(sec/60);
+  return `Updated ${min}m ago`;
+}
+
+async function loadStudentLiveLocations(){
+  const { data, error } = await sb
+    .from('live_locations')
+    .select('route_id, lat, lng, updated_at, active');
+  if(error) { console.error('Failed to load live locations:', error.message); return; }
+
+  const now = Date.now();
+  const fresh = {};
+  data.forEach(l => {
+    const ageMs = now - new Date(l.updated_at).getTime();
+    const stale = ageMs > 5 * 60 * 1000; // stale if older than 5 mins
+    fresh[l.route_id] = { ...l, active: l.active && !stale };
+  });
+  liveData = fresh;
+}
+
+async function pollLive() {
+  await loadStudentLiveLocations();
+  const sig = Object.keys(liveData).filter(id => liveData[id].active).sort().join(',');
+  if(sig !== lastLiveSignature) {
+    lastLiveSignature = sig;
+    renderStudentView(document.getElementById('searchInput').value);
+  } else {
+    Object.keys(mapInstances).forEach(routeId => {
+      const live = liveData[routeId];
+      if(live && live.active) {
+        mapInstances[routeId].marker.setLatLng([live.lat, live.lng]);
+        mapInstances[routeId].map.panTo([live.lat, live.lng]);
+        const updEl = document.getElementById(`updated-${routeId}`);
+        if(updEl) updEl.textContent = timeAgo(live.updated_at);
+      }
+    });
+  }
+}
+
+async function loadStudentRoutes() {
+  const loadingEl = document.getElementById('loadingState');
+  const errorEl = document.getElementById('errorState');
+  const listEl = document.getElementById('studentRouteList');
+  
+  loadingEl.style.display = 'block';
+  errorEl.style.display = 'none';
+  listEl.innerHTML = '';
+
+  try {
+    const { data: routeRows, error: routeErr } = await sb
+      .from('routes')
+      .select('id, name')
+      .eq('active', true)
+      .order('id');
+    if(routeErr) throw routeErr;
+
+    const { data: stopRows, error: stopErr } = await sb
+      .from('stops')
+      .select('route_id, seq, name, time')
+      .order('seq');
+    if(stopErr) throw stopErr;
+
+    const stopsByRoute = {};
+    stopRows.forEach(s => {
+      if(!stopsByRoute[s.route_id]) stopsByRoute[s.route_id] = [];
+      stopsByRoute[s.route_id].push({ name: s.name, time: s.time });
+    });
+
+    routes = routeRows.map(r => ({
+      id: r.id,
+      name: r.name,
+      stops: stopsByRoute[r.id] || []
+    }));
+
+    await loadStudentLiveLocations();
+    lastLiveSignature = Object.keys(liveData).filter(id => liveData[id].active).sort().join(',');
+
+    loadingEl.style.display = 'none';
+    renderStudentView('');
+  } catch (err) {
+    console.error('Failed to load routes:', err);
+    loadingEl.style.display = 'none';
+    errorEl.style.display = 'block';
+    document.getElementById('errorDetail').textContent = err.message || 'Check database configurations.';
+  }
+}
+
+function renderStudentView(query) {
+  const q = (query || '').trim().toLowerCase();
+  const listEl = document.getElementById('studentRouteList');
+  const emptyEl = document.getElementById('emptyState');
+  const countEl = document.getElementById('countLabel');
+
+  listEl.innerHTML = '';
+  mapInstances = {};
+  let visibleCount = 0;
+
+  routes.forEach(route => {
+    const routeMatch = route.id.toLowerCase().includes(q) || route.name.toLowerCase().includes(q);
+    const matchingStops = route.stops.filter(s => s.name.toLowerCase().includes(q));
+    const show = q === '' || routeMatch || matchingStops.length > 0;
+    if(!show) return;
+    visibleCount++;
+
+    const firstStop = route.stops[0] || { time: 'N/A' };
+    const live = liveData[route.id];
+    const isLive = !!(live && live.active);
+    const card = document.createElement('div');
+    card.className = 'route-card';
+    if(q !== '' && matchingStops.length > 0 && !routeMatch) card.classList.add('open');
+
+    card.innerHTML = `
+      <div class="route-head">
+        <div class="route-tag">${route.id}</div>
+        <div class="route-info">
+          <p class="route-name">${route.name}</p>
+          <p class="route-meta">${route.stops.length} stops &middot; first pickup ${firstStop.time}</p>
+          ${isLive ? '<div class="live-badge"><span class="live-dot"></span>LIVE</div>' : ''}
+        </div>
+        <div>
+          <div class="depart-time">7:40 am</div>
+          <div class="depart-label">Campus arrival</div>
+        </div>
+        <div class="chevron">&#9660;</div>
+      </div>
+      ${isLive ? `<div class="live-map" id="map-${route.id}"></div><div class="live-updated" id="updated-${route.id}">${timeAgo(live.updated_at)}</div>` : ''}
+      <div class="stops">
+        ${route.stops.map(s => `
+          <div class="stop-row">
+            <div class="stop-dot"></div>
+            <div class="stop-name ${q !== '' && s.name.toLowerCase().includes(q) ? 'match' : ''}">${s.name}</div>
+            <div class="stop-time">${s.time}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    card.querySelector('.route-head').addEventListener('click', () => {
+      card.classList.toggle('open');
+      // If expanding a live route map, force update sizing
+      if (card.classList.contains('open') && isLive) {
+        setTimeout(() => {
+          if (mapInstances[route.id]) {
+            mapInstances[route.id].map.invalidateSize();
+          }
+        }, 300);
+      }
+    });
+
+    listEl.appendChild(card);
+
+    if(isLive){
+      const mapEl = document.getElementById(`map-${route.id}`);
+      const map = L.map(mapEl, { zoomControl:false, attributionControl:false }).setView([live.lat, live.lng], 15);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+      const busIcon = L.divIcon({
+        html: '<div style="background:#C0392B;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.4);"></div>',
+        className: '', iconSize: [16,16], iconAnchor: [8,8]
+      });
+      const marker = L.marker([live.lat, live.lng], { icon: busIcon }).addTo(map);
+      mapInstances[route.id] = { map, marker };
+    }
+  });
+
+  emptyEl.style.display = visibleCount === 0 ? 'block' : 'none';
+  countEl.textContent = q ? `${visibleCount} match${visibleCount === 1 ? '' : 'es'}` : `${routes.length} active`;
+}
+
+document.getElementById('searchInput').addEventListener('input', (e) => renderStudentView(e.target.value));
+
+
+// ==========================================================================
+// 2. DRIVER CONSOLE LOGIC
+// ==========================================================================
+async function driverInit(email) {
+  sharing = false;
+  watchId = null;
+  selectedRoute = null;
+
+  // Reset controls
+  const btn = document.getElementById('toggleBtn');
+  btn.textContent = 'Start Trip';
+  btn.className = 'big-btn start';
+  document.getElementById('statusDot').className = 'status-dot';
+  document.getElementById('statusText').textContent = 'NOT SHARING LOCATION';
+  document.getElementById('coordsDisplay').textContent = 'GPS coordinates will appear here when active';
+  document.getElementById('routeSelect').disabled = false;
+
+  await loadDriverAssignedRoute(email);
+}
+
+async function loadDriverAssignedRoute(email) {
+  const assignedWrap = document.getElementById('assignedRouteWrap');
+  const pickerWrap = document.getElementById('routePickerWrap');
+  const assignedDisplay = document.getElementById('assignedRouteDisplay');
+
+  // Query driver_routes mapping by email first, fallback to user_id
+  let assignment = null;
+  
+  const { data: routeByEmail, error: errEmail } = await sb
+    .from('driver_routes')
+    .select('route_id')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (!errEmail && routeByEmail && routeByEmail.route_id) {
+    assignment = routeByEmail;
+  } else {
+    // If not found by email, try fetching current session UID and mapping it
+    const { data: sessionData } = await sb.auth.getSession();
+    if (sessionData.session) {
+      const uid = sessionData.session.user.id;
+      const { data: routeById, error: errId } = await sb
+        .from('driver_routes')
+        .select('route_id')
+        .eq('user_id', uid)
+        .maybeSingle();
+      if (!errId && routeById && routeById.route_id) {
+        assignment = routeById;
+      }
+    }
+  }
+
+  if (assignment && assignment.route_id) {
+    const { data: routeRow } = await sb
+      .from('routes')
+      .select('id, name')
+      .eq('id', assignment.route_id)
+      .maybeSingle();
+
+    selectedRoute = assignment.route_id;
+    assignedDisplay.textContent = routeRow ? `${routeRow.id} — ${routeRow.name}` : assignment.route_id;
+    assignedWrap.style.display = 'block';
+    pickerWrap.style.display = 'none';
+  } else {
+    // Dropdown selection if driver mapping isn't found
+    await loadDriverRoutePicker();
+    assignedWrap.style.display = 'none';
+    pickerWrap.style.display = 'block';
+  }
+}
+
+async function loadDriverRoutePicker() {
+  const { data, error } = await sb.from('routes').select('id, name').order('id');
+  const sel = document.getElementById('routeSelect');
+  sel.innerHTML = '';
+  if(error) { sel.innerHTML = '<option>Failed to load routes</option>'; return; }
+  
+  data.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.id;
+    opt.textContent = `${r.id} — ${r.name}`;
+    sel.appendChild(opt);
+  });
+  
+  selectedRoute = data[0]?.id || null;
+  sel.addEventListener('change', () => { selectedRoute = sel.value; });
+}
+
+function toggleSharing() {
+  if(!sharing) startSharing();
+  else stopSharing();
+}
+
+function startSharing() {
+  if(!navigator.geolocation) {
+    alert('This device does not support GPS location.');
+    return;
+  }
+
+  const pickerVisible = document.getElementById('routePickerWrap').style.display !== 'none';
+  if(pickerVisible) {
+    selectedRoute = document.getElementById('routeSelect').value;
+  }
+  if(!selectedRoute) { alert('Please select a route first.'); return; }
+
+  if(pickerVisible) document.getElementById('routeSelect').disabled = true;
+
+  watchId = navigator.geolocation.watchPosition(async (pos) => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    document.getElementById('coordsDisplay').textContent = `Latitude: ${lat.toFixed(6)} | Longitude: ${lng.toFixed(6)}`;
+
+    const { error } = await sb.from('live_locations').upsert({
+      route_id: selectedRoute,
+      lat, lng,
+      updated_at: new Date().toISOString(),
+      active: true
+    });
+    if(error) console.error('Failed to stream location coordinates:', error.message);
+  }, (err) => {
+    alert('GPS streaming error: ' + err.message);
+  }, {
+    enableHighAccuracy: true,
+    maximumAge: 4000,
+    timeout: 10000
+  });
+
+  sharing = true;
+  document.getElementById('statusDot').classList.add('live');
+  document.getElementById('statusText').textContent = 'LIVE — ACTIVE STREAMING';
+  
+  const btn = document.getElementById('toggleBtn');
+  btn.textContent = 'End Trip';
+  btn.classList.remove('start');
+  btn.classList.add('stop');
+  showToast('Trip started - live location shared');
+}
+
+async function stopSharing() {
+  if(watchId !== null) {
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+  }
+  
+  if(selectedRoute) {
+    await sb.from('live_locations').update({ active: false }).eq('route_id', selectedRoute);
+  }
+
+  sharing = false;
+  document.getElementById('routeSelect').disabled = false;
+  document.getElementById('statusDot').classList.remove('live');
+  document.getElementById('statusText').textContent = 'NOT SHARING LOCATION';
+  document.getElementById('coordsDisplay').textContent = 'GPS coordinates will appear here when active';
+  
+  const btn = document.getElementById('toggleBtn');
+  btn.textContent = 'Start Trip';
+  btn.classList.remove('stop');
+  btn.classList.add('start');
+  showToast('Trip ended - live location cleared');
+}
+
+
+// ==========================================================================
+// 3. ADMIN PANEL LOGIC
+// ==========================================================================
+let adminRoutesList = [];
+
+async function adminInit() {
+  await loadAdminRoutes();
+  await loadAdminAssignments();
+}
+
+async function loadAdminRoutes() {
+  const listEl = document.getElementById('adminRouteList');
+  const emptyEl = document.getElementById('adminEmptyState');
+  listEl.innerHTML = '<p style="text-align:center;padding:20px;color:var(--slate);">Loading workspace configurations...</p>';
+
+  try {
+    const { data: routeRows, error: routeErr } = await sb.from('routes').select('id, name, active').order('id');
+    if(routeErr) throw routeErr;
+
+    const { data: stopRows, error: stopErr } = await sb.from('stops').select('id, route_id, seq, name, time').order('seq');
+    if(stopErr) throw stopErr;
+
+    const stopsByRoute = {};
+    stopRows.forEach(s => {
+      if(!stopsByRoute[s.route_id]) stopsByRoute[s.route_id] = [];
+      stopsByRoute[s.route_id].push(s);
+    });
+
+    adminRoutesList = routeRows.map(r => ({ ...r, stops: stopsByRoute[r.id] || [] }));
+    renderAdminRoutes();
+    populateAdminRouteSelect();
+  } catch (err) {
+    console.error('Failed to load admin panel data:', err);
+    listEl.innerHTML = `<p style="color:var(--danger);padding:20px;">Error loading data: ${err.message}</p>`;
+  }
+}
+
+function renderAdminRoutes() {
+  const listEl = document.getElementById('adminRouteList');
+  const emptyEl = document.getElementById('adminEmptyState');
+  listEl.innerHTML = '';
+  
+  if (adminRoutesList.length === 0) {
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  adminRoutesList.forEach(route => {
+    const card = document.createElement('div');
+    card.className = 'route-card';
+
+    card.innerHTML = `
+      <div class="route-head">
+        <div class="route-tag">${route.id}</div>
+        <div class="route-info">
+          <p class="route-name" style="color:var(--navy); font-size:15.5px;">${route.name}</p>
+          <p class="route-meta">${route.stops.length} configuration stops</p>
+        </div>
+        <label class="toggle-wrap" onclick="event.stopPropagation()" style="font-size:12px;display:flex;align-items:center;gap:6px;margin-right:15px;color:var(--slate);font-weight:500;">
+          <input type="checkbox" ${route.active ? 'checked' : ''} onchange="toggleRouteActive('${route.id}', this.checked)">
+          Active
+        </label>
+        <div class="chevron">&#9660;</div>
+      </div>
+      <div class="stops">
+        <div id="admin-stops-${route.id}"></div>
+        <div class="add-stop-row-admin">
+          <input class="name" placeholder="New stop name (e.g. Tambaram)" id="newStopName-${route.id}">
+          <input class="time" placeholder="7:15 am" id="newStopTime-${route.id}">
+          <button class="btn btn-primary" style="padding:6px 12px; font-size:12px;" onclick="addAdminStop('${route.id}')">Add Stop</button>
+        </div>
+        <div class="route-actions-admin">
+          <button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="deleteRoute('${route.id}')">Delete Entire Route</button>
+        </div>
+      </div>
+    `;
+
+    card.querySelector('.route-head').addEventListener('click', () => {
+      card.classList.toggle('open');
+    });
+
+    listEl.appendChild(card);
+
+    const stopsContainer = document.getElementById(`admin-stops-${route.id}`);
+    route.stops.forEach(stop => {
+      const row = document.createElement('div');
+      row.className = 'stop-row-admin';
+      row.innerHTML = `
+        <input class="name" value="${stop.name.replace(/"/g,'&quot;')}" id="admin-sname-${stop.id}">
+        <input class="time" value="${stop.time.replace(/"/g,'&quot;')}" id="admin-stime-${stop.id}">
+        <button class="icon-btn" title="Save" onclick="saveAdminStop(${stop.id})">&#128190;</button>
+        <button class="icon-btn" title="Delete" onclick="deleteAdminStop(${stop.id}, '${route.id}')">&#128465;&#65039;</button>
+      `;
+      stopsContainer.appendChild(row);
+    });
+  });
+}
+
+async function toggleRouteActive(routeId, isActive) {
+  const { error } = await sb.from('routes').update({ active: isActive }).eq('id', routeId);
+  if(error) { alert('Failed to toggle active state: ' + error.message); return; }
+  showToast(isActive ? 'Route activated' : 'Route deactivated');
+}
+
+async function saveAdminStop(stopId) {
+  const name = document.getElementById(`admin-sname-${stopId}`).value.trim();
+  const time = document.getElementById(`admin-stime-${stopId}`).value.trim();
+  if(!name || !time) { alert('Name and time are required.'); return; }
+
+  const { error } = await sb.from('stops').update({ name, time }).eq('id', stopId);
+  if(error) { alert('Failed to save stop: ' + error.message); return; }
+  showToast('Stop details updated');
+}
+
+async function deleteAdminStop(stopId, routeId) {
+  if(!confirm('Are you sure you want to delete this stop?')) return;
+  const { error } = await sb.from('stops').delete().eq('id', stopId);
+  if(error) { alert('Failed to delete stop: ' + error.message); return; }
+  await loadAdminRoutes();
+  showToast('Stop deleted');
+}
+
+async function addAdminStop(routeId) {
+  const nameEl = document.getElementById(`newStopName-${routeId}`);
+  const timeEl = document.getElementById(`newStopTime-${routeId}`);
+  const name = nameEl.value.trim();
+  const time = timeEl.value.trim();
+  if(!name || !time) { alert('Enter both stop name and time.'); return; }
+
+  const route = adminRoutesList.find(r => r.id === routeId);
+  const nextSeq = route.stops.length > 0 ? Math.max(...route.stops.map(s => s.seq)) + 1 : 1;
+
+  const { error } = await sb.from('stops').insert({ route_id: routeId, seq: nextSeq, name, time });
+  if(error) { alert('Failed to add stop: ' + error.message); return; }
+  
+  nameEl.value = '';
+  timeEl.value = '';
+  await loadAdminRoutes();
+  showToast('Stop added successfully');
+}
+
+async function addRoute() {
+  const idEl = document.getElementById('newRouteId');
+  const nameEl = document.getElementById('newRouteName');
+  const id = idEl.value.trim();
+  const name = nameEl.value.trim();
+
+  if(!id || !name) { alert('Enter both a route ID and name.'); return; }
+
+  const { error } = await sb.from('routes').insert({ id, name, active: true });
+  if(error) { alert('Failed to add new route: ' + error.message); return; }
+
+  idEl.value = '';
+  nameEl.value = '';
+  await loadAdminRoutes();
+  showToast('New route added');
+}
+
+async function deleteRoute(routeId) {
+  if(!confirm(`Are you sure you want to delete route ${routeId} and all associated stops? This action is permanent.`)) return;
+  const { error } = await sb.from('routes').delete().eq('id', routeId);
+  if(error) { alert('Failed to delete route: ' + error.message); return; }
+  await loadAdminRoutes();
+  showToast('Route and stops deleted');
+}
+
+function populateAdminRouteSelect() {
+  const sel = document.getElementById('driverRouteSelect');
+  sel.innerHTML = '';
+  adminRoutesList.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.id;
+    opt.textContent = `${r.id} — ${r.name}`;
+    sel.appendChild(opt);
+  });
+}
+
+// Assignments management (handling email/user_id robustly)
+async function loadAdminAssignments() {
+  const listEl = document.getElementById('assignmentsList');
+  listEl.innerHTML = '<p style="font-size:12px;color:var(--slate);">Loading driver mappings...</p>';
+
+  // Use dynamic select to fetch whatever columns are available on driver_routes
+  const { data, error } = await sb.from('driver_routes').select('*');
+  if(error) {
+    listEl.innerHTML = `<p style="font-size:11.5px;color:var(--danger);">Failed: ${error.message}</p>`;
+    return;
+  }
+
+  if(!data.length) {
+    listEl.innerHTML = '<p style="font-size:12px;color:var(--slate);">No drivers mapped to routes yet.</p>';
+    return;
+  }
+
+  listEl.innerHTML = data.map(a => {
+    // Show email if it exists, otherwise show user_id
+    const displayName = a.email ? a.email : (a.user_id ? a.user_id.slice(0, 8) + '...' : 'Unknown');
+    // Identifier key for deleting
+    const deleteParam = a.email ? `email:${a.email}` : `user_id:${a.user_id}`;
+    
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F0EEE7;font-size:12.5px;">
+        <span style="font-family:'JetBrains Mono',monospace;color:var(--slate);" title="${a.email || a.user_id}">${displayName}</span>
+        <span style="font-weight:600;color:var(--navy);">${a.route_id}</span>
+        <button class="icon-btn" title="Remove assignment" onclick="removeAdminAssignment('${deleteParam}')">&#128465;&#65039;</button>
+      </div>
+    `;
+  }).join('');
+}
+
+async function assignDriverRoute() {
+  const userIdEl = document.getElementById('driverUserId');
+  const routeSel = document.getElementById('driverRouteSelect');
+  const inputVal = userIdEl.value.trim();
+  const routeId = routeSel.value;
+
+  if(!inputVal) { alert('Enter driver email or User ID first.'); return; }
+  if(!routeId) { alert('Select a route to assign.'); return; }
+
+  // Detect email vs uuid
+  const isEmail = inputVal.includes('@');
+  const payload = {
+    route_id: routeId,
+    updated_at: new Date().toISOString()
+  };
+
+  if (isEmail) {
+    payload.email = inputVal;
+  } else {
+    payload.user_id = inputVal;
+  }
+
+  const { error } = await sb.from('driver_routes').upsert(payload);
+  if(error) { alert('Failed to create driver mapping: ' + error.message); return; }
+
+  userIdEl.value = '';
+  await loadAdminAssignments();
+  showToast('Driver mapped to route');
+}
+
+async function removeAdminAssignment(deleteParam) {
+  if(!confirm('Are you sure you want to remove this driver assignment?')) return;
+  
+  const parts = deleteParam.split(':');
+  const fieldName = parts[0];
+  const fieldVal = parts[1];
+
+  const { error } = await sb.from('driver_routes').delete().eq(fieldName, fieldVal);
+  if(error) { alert('Failed to remove: ' + error.message); return; }
+
+  await loadAdminAssignments();
+  showToast('Assignment removed');
+}
+
+// ==========================================================================
+// PWA SERVICE WORKER REGISTRATION
+// ==========================================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then((reg) => console.log('[PWA] Service Worker registered successfully:', reg.scope))
+      .catch((err) => console.error('[PWA] Service Worker registration failed:', err));
+  });
+}
+
+</script>
+
+</body>
+</html>
