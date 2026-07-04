@@ -3,12 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#12213D">
+<link rel="manifest" href="manifest.json">
+<!-- Apple Touch Icon for iOS installability -->
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>RIT Transport Hub</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <style>
   :root {
     --navy: #12213D;
@@ -718,6 +721,7 @@
   .stop-row-admin {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
     padding: 10px 16px;
     border-bottom: 1px solid #F0EEE7;
@@ -730,8 +734,9 @@
     font-size: 13px;
     font-family: 'Inter', sans-serif;
   }
-  .stop-row-admin input.name { flex: 1; min-width: 0; }
-  .stop-row-admin input.time { width: 95px; font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+  .stop-row-admin input.name { flex: 1; min-width: 140px; }
+  .stop-row-admin input.time { width: 85px; font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+  .stop-row-admin input.lat, .stop-row-admin input.lng { width: 85px; font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
   .icon-btn {
     border: none;
     background: transparent;
@@ -746,6 +751,8 @@
   }
   .add-stop-row-admin {
     display: flex;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
     padding: 12px 16px;
     background: #FAFAF7;
@@ -757,8 +764,9 @@
     padding: 6px 10px;
     font-size: 13px;
   }
-  .add-stop-row-admin input.name { flex: 1; }
-  .add-stop-row-admin input.time { width: 95px; font-family: 'JetBrains Mono', monospace; }
+  .add-stop-row-admin input.name { flex: 1; min-width: 140px; }
+  .add-stop-row-admin input.time { width: 85px; font-family: 'JetBrains Mono', monospace; }
+  .add-stop-row-admin input.lat, .add-stop-row-admin input.lng { width: 85px; font-family: 'JetBrains Mono', monospace; }
   .route-actions-admin {
     display: flex;
     justify-content: space-between;
@@ -1053,6 +1061,122 @@ let mapInstances = {};
 let lastLiveSignature = '';
 let livePollingInterval = null;
 
+// Google Maps dynamic script loader & helper functions
+let googleMapsPromise = null;
+
+async function getGoogleMapsApiKey() {
+  if (window.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) return window.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  if (window.VITE_GOOGLE_MAPS_API_KEY) return window.VITE_GOOGLE_MAPS_API_KEY;
+  
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (key) return key;
+    }
+  } catch (e) {}
+
+  try {
+    const res = await fetch('.env');
+    if (res.ok) {
+      const text = await res.text();
+      const match = text.match(/(?:NEXT_PUBLIC_GOOGLE_MAPS_API_KEY|VITE_GOOGLE_MAPS_API_KEY)\s*=\s*["']?([^"'\r\n]+)/);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+    }
+  } catch (e) {}
+
+  return '';
+}
+
+function loadGoogleMapsAPI() {
+  if (googleMapsPromise) return googleMapsPromise;
+  
+  googleMapsPromise = new Promise(async (resolve, reject) => {
+    if (window.google && window.google.maps) {
+      resolve();
+      return;
+    }
+    
+    try {
+      const key = await getGoogleMapsApiKey();
+      
+      const script = document.createElement('script');
+      window.initGoogleMapsCallback = () => {
+        resolve();
+      };
+      
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&callback=initGoogleMapsCallback`;
+      script.async = true;
+      script.defer = true;
+      script.onerror = (err) => {
+        reject(new Error("Failed to load Google Maps script."));
+      };
+      
+      document.head.appendChild(script);
+    } catch (err) {
+      reject(err);
+    }
+  });
+  
+  return googleMapsPromise;
+}
+
+// Proximity Calculations (Haversine Formula)
+function getHaversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Radius of the Earth in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in km
+}
+
+function computeNearestStop(route, busLat, busLng) {
+  if (!route.stops || route.stops.length === 0) return null;
+  
+  let nearestStop = null;
+  let minDistance = Infinity;
+  
+  route.stops.forEach(stop => {
+    if (stop.lat !== null && stop.lat !== undefined && stop.lng !== null && stop.lng !== undefined) {
+      const dist = getHaversineDistance(busLat, busLng, stop.lat, stop.lng);
+      if (dist < minDistance) {
+        minDistance = dist;
+        nearestStop = { ...stop, distance: dist };
+      }
+    }
+  });
+  
+  return nearestStop;
+}
+
+function updateProximityDisplay(route, live) {
+  const proxEl = document.getElementById(`proximity-${route.id}`);
+  if (!proxEl) return;
+  const textEl = proxEl.querySelector('.proximity-text');
+  if (!textEl) return;
+  
+  if (!live || !live.active) {
+    textEl.textContent = 'En route';
+    return;
+  }
+  
+  const nearest = computeNearestStop(route, live.lat, live.lng);
+  if (nearest && nearest.distance <= 1.5) {
+    if (nearest.distance < 0.15) {
+      textEl.textContent = `Currently near: ${nearest.name}`;
+    } else {
+      textEl.textContent = `Approaching: ${nearest.name} (${nearest.distance.toFixed(1)} km)`;
+    }
+  } else {
+    textEl.textContent = 'En route';
+  }
+}
+
 // Driver console variables
 let watchId = null;
 let sharing = false;
@@ -1267,10 +1391,18 @@ async function pollLive() {
     Object.keys(mapInstances).forEach(routeId => {
       const live = liveData[routeId];
       if(live && live.active) {
-        mapInstances[routeId].marker.setLatLng([live.lat, live.lng]);
-        mapInstances[routeId].map.panTo([live.lat, live.lng]);
+        const inst = mapInstances[routeId];
+        if (inst && inst.marker && inst.marker.setPosition) {
+          const newPos = { lat: live.lat, lng: live.lng };
+          inst.marker.setPosition(newPos);
+          inst.map.panTo(newPos);
+        }
         const updEl = document.getElementById(`updated-${routeId}`);
         if(updEl) updEl.textContent = timeAgo(live.updated_at);
+        const route = routes.find(r => r.id === routeId);
+        if (route) {
+          updateProximityDisplay(route, live);
+        }
       }
     });
   }
@@ -1295,14 +1427,14 @@ async function loadStudentRoutes() {
 
     const { data: stopRows, error: stopErr } = await sb
       .from('stops')
-      .select('route_id, seq, name, time')
+      .select('route_id, seq, name, time, lat, lng')
       .order('seq');
     if(stopErr) throw stopErr;
 
     const stopsByRoute = {};
     stopRows.forEach(s => {
       if(!stopsByRoute[s.route_id]) stopsByRoute[s.route_id] = [];
-      stopsByRoute[s.route_id].push({ name: s.name, time: s.time });
+      stopsByRoute[s.route_id].push({ name: s.name, time: s.time, lat: s.lat, lng: s.lng });
     });
 
     routes = routeRows.map(r => ({
@@ -1362,7 +1494,14 @@ function renderStudentView(query) {
         </div>
         <div class="chevron">&#9660;</div>
       </div>
-      ${isLive ? `<div class="live-map" id="map-${route.id}"></div><div class="live-updated" id="updated-${route.id}">${timeAgo(live.updated_at)}</div>` : ''}
+      ${isLive ? `
+        <div class="live-proximity" id="proximity-${route.id}" style="padding:8px 18px; font-size:13px; font-weight:600; color:var(--navy); background:#FDF0D5; border-top:1px dashed var(--line); display:flex; align-items:center; gap:8px;">
+          <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--amber);"></span>
+          <span class="proximity-text">Calculating nearest stop...</span>
+        </div>
+        <div class="live-map" id="map-${route.id}"></div>
+        <div class="live-updated" id="updated-${route.id}">${timeAgo(live.updated_at)}</div>
+      ` : ''}
       <div class="stops">
         ${route.stops.map(s => `
           <div class="stop-row">
@@ -1379,8 +1518,13 @@ function renderStudentView(query) {
       // If expanding a live route map, force update sizing
       if (card.classList.contains('open') && isLive) {
         setTimeout(() => {
-          if (mapInstances[route.id]) {
-            mapInstances[route.id].map.invalidateSize();
+          if (mapInstances[route.id] && window.google && window.google.maps) {
+            const map = mapInstances[route.id].map;
+            google.maps.event.trigger(map, 'resize');
+            const live = liveData[route.id];
+            if (live) {
+              map.setCenter({ lat: live.lat, lng: live.lng });
+            }
           }
         }, 300);
       }
@@ -1389,15 +1533,52 @@ function renderStudentView(query) {
     listEl.appendChild(card);
 
     if(isLive){
+      setTimeout(() => {
+        updateProximityDisplay(route, live);
+      }, 0);
+
       const mapEl = document.getElementById(`map-${route.id}`);
-      const map = L.map(mapEl, { zoomControl:false, attributionControl:false }).setView([live.lat, live.lng], 15);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-      const busIcon = L.divIcon({
-        html: '<div style="background:#C0392B;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.4);"></div>',
-        className: '', iconSize: [16,16], iconAnchor: [8,8]
+      loadGoogleMapsAPI().then(() => {
+        if (mapInstances[route.id]) return;
+        
+        // Custom bus icon matching navy/amber
+        const markerSvg = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36">
+            <circle cx="12" cy="12" r="11" fill="#12213D" stroke="#F5A623" stroke-width="2"/>
+            <path d="M17 9c0-1.1-.9-2-2-2H9C7.9 7 7 7.9 7 9v6c0 1.1.9 2 2 2h1v1c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-1h1c1.1 0 2-.9 2-2V9zm-8 6c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm6 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm2-3H7V9h10v3z" fill="#FFFFFF"/>
+          </svg>
+        `;
+
+        const mapOptions = {
+          center: { lat: live.lat, lng: live.lng },
+          zoom: 15,
+          disableDefaultUI: true,
+          zoomControl: false,
+          mapTypeControl: false,
+          scaleControl: false,
+          streetViewControl: false,
+          rotateControl: false,
+          fullscreenControl: false
+        };
+
+        const map = new google.maps.Map(mapEl, mapOptions);
+        const marker = new google.maps.Marker({
+          position: { lat: live.lat, lng: live.lng },
+          map: map,
+          icon: {
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(markerSvg),
+            size: new google.maps.Size(36, 36),
+            origin: new google.maps.Point(0, 0),
+            anchor: new google.maps.Point(18, 18)
+          },
+          title: `Route ${route.id} Live Bus`
+        });
+
+        mapInstances[route.id] = { map, marker };
+      }).catch(err => {
+        console.error(err);
+        mapEl.innerHTML = `<div style="padding: 20px; color: var(--danger); text-align: center;">Failed to load Google Maps. Please verify your API Key.</div>`;
       });
-      const marker = L.marker([live.lat, live.lng], { icon: busIcon }).addTo(map);
-      mapInstances[route.id] = { map, marker };
     }
   });
 
@@ -1589,7 +1770,7 @@ async function loadAdminRoutes() {
     const { data: routeRows, error: routeErr } = await sb.from('routes').select('id, name, active').order('id');
     if(routeErr) throw routeErr;
 
-    const { data: stopRows, error: stopErr } = await sb.from('stops').select('id, route_id, seq, name, time').order('seq');
+    const { data: stopRows, error: stopErr } = await sb.from('stops').select('id, route_id, seq, name, time, lat, lng').order('seq');
     if(stopErr) throw stopErr;
 
     const stopsByRoute = {};
@@ -1640,6 +1821,8 @@ function renderAdminRoutes() {
         <div class="add-stop-row-admin">
           <input class="name" placeholder="New stop name (e.g. Tambaram)" id="newStopName-${route.id}">
           <input class="time" placeholder="7:15 am" id="newStopTime-${route.id}">
+          <input class="lat" type="number" step="any" placeholder="Latitude" id="newStopLat-${route.id}">
+          <input class="lng" type="number" step="any" placeholder="Longitude" id="newStopLng-${route.id}">
           <button class="btn btn-primary" style="padding:6px 12px; font-size:12px;" onclick="addAdminStop('${route.id}')">Add Stop</button>
         </div>
         <div class="route-actions-admin">
@@ -1661,6 +1844,8 @@ function renderAdminRoutes() {
       row.innerHTML = `
         <input class="name" value="${stop.name.replace(/"/g,'&quot;')}" id="admin-sname-${stop.id}">
         <input class="time" value="${stop.time.replace(/"/g,'&quot;')}" id="admin-stime-${stop.id}">
+        <input class="lat" type="number" step="any" placeholder="Lat" value="${stop.lat !== null && stop.lat !== undefined ? stop.lat : ''}" id="admin-slat-${stop.id}">
+        <input class="lng" type="number" step="any" placeholder="Lng" value="${stop.lng !== null && stop.lng !== undefined ? stop.lng : ''}" id="admin-slng-${stop.id}">
         <button class="icon-btn" title="Save" onclick="saveAdminStop(${stop.id})">&#128190;</button>
         <button class="icon-btn" title="Delete" onclick="deleteAdminStop(${stop.id}, '${route.id}')">&#128465;&#65039;</button>
       `;
@@ -1678,9 +1863,14 @@ async function toggleRouteActive(routeId, isActive) {
 async function saveAdminStop(stopId) {
   const name = document.getElementById(`admin-sname-${stopId}`).value.trim();
   const time = document.getElementById(`admin-stime-${stopId}`).value.trim();
+  const latVal = document.getElementById(`admin-slat-${stopId}`).value.trim();
+  const lngVal = document.getElementById(`admin-slng-${stopId}`).value.trim();
   if(!name || !time) { alert('Name and time are required.'); return; }
 
-  const { error } = await sb.from('stops').update({ name, time }).eq('id', stopId);
+  const lat = latVal !== '' ? parseFloat(latVal) : null;
+  const lng = lngVal !== '' ? parseFloat(lngVal) : null;
+
+  const { error } = await sb.from('stops').update({ name, time, lat, lng }).eq('id', stopId);
   if(error) { alert('Failed to save stop: ' + error.message); return; }
   showToast('Stop details updated');
 }
@@ -1696,18 +1886,27 @@ async function deleteAdminStop(stopId, routeId) {
 async function addAdminStop(routeId) {
   const nameEl = document.getElementById(`newStopName-${routeId}`);
   const timeEl = document.getElementById(`newStopTime-${routeId}`);
+  const latEl = document.getElementById(`newStopLat-${routeId}`);
+  const lngEl = document.getElementById(`newStopLng-${routeId}`);
   const name = nameEl.value.trim();
   const time = timeEl.value.trim();
+  const latVal = latEl.value.trim();
+  const lngVal = lngEl.value.trim();
   if(!name || !time) { alert('Enter both stop name and time.'); return; }
+
+  const lat = latVal !== '' ? parseFloat(latVal) : null;
+  const lng = lngVal !== '' ? parseFloat(lngVal) : null;
 
   const route = adminRoutesList.find(r => r.id === routeId);
   const nextSeq = route.stops.length > 0 ? Math.max(...route.stops.map(s => s.seq)) + 1 : 1;
 
-  const { error } = await sb.from('stops').insert({ route_id: routeId, seq: nextSeq, name, time });
+  const { error } = await sb.from('stops').insert({ route_id: routeId, seq: nextSeq, name, time, lat, lng });
   if(error) { alert('Failed to add stop: ' + error.message); return; }
   
   nameEl.value = '';
   timeEl.value = '';
+  latEl.value = '';
+  lngEl.value = '';
   await loadAdminRoutes();
   showToast('Stop added successfully');
 }
@@ -1823,6 +2022,17 @@ async function removeAdminAssignment(deleteParam) {
 
   await loadAdminAssignments();
   showToast('Assignment removed');
+}
+
+// ==========================================================================
+// PWA SERVICE WORKER REGISTRATION
+// ==========================================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then((reg) => console.log('[PWA] Service Worker registered successfully:', reg.scope))
+      .catch((err) => console.error('[PWA] Service Worker registration failed:', err));
+  });
 }
 
 

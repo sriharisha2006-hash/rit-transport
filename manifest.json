@@ -1,0 +1,22 @@
+{
+  "name": "RIT Transport Hub",
+  "short_name": "RIT Transport",
+  "description": "Real-time student shuttle tracking and schedule portal for Rajalakshmi Institute of Technology",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#12213D",
+  "theme_color": "#12213D",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
