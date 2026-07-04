@@ -1,12 +1,10 @@
-const CACHE_NAME = 'rit-transport-v3';
+const CACHE_NAME = 'rit-transport-v4';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './rit_college.jpg',
   './logo.png',
-  './icon-192.png',
-  './icon-512.png',
   'https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'
 ];
