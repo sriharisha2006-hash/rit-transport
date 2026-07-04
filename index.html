@@ -791,11 +791,13 @@
      A. MAIN PORTAL LANDING PAGE
      ========================================================================== -->
 <div id="landingView" class="view-container" style="display: flex;">
-  <div class="landing-hero">
+  <div class="landing-hero" style="display: flex; flex-direction: column; align-items: center;">
+    <div style="background: #ffffff; padding: 10px 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 1.5px solid var(--amber);">
+      <img src="logo.png" alt="RIT Logo" style="height: 60px; display: block; object-fit: contain;">
+    </div>
     <span class="badge">Rajalakshmi Institute of Technology</span>
     <h1>RIT Transport Hub</h1>
     <p>Select your dashboard to search student shuttles, watch live bus locations, or manage routes and assignments.</p>
-
   </div>
 
   <div class="role-grid">
@@ -828,11 +830,14 @@
      ========================================================================== -->
 <div id="studentView" class="view-container">
   <header class="nav-header">
-    <div class="nav-left">
+    <div class="nav-left" style="display: flex; align-items: center; gap: 12px;">
       <button class="back-btn" onclick="switchView('landing')">
         <span>&larr;</span> Back to Roles
       </button>
-      <h1 class="nav-title">RIT STUDENT PORTAL</h1>
+      <div style="background: #ffffff; padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; justify-content: center; height: 32px; flex-shrink: 0;">
+        <img src="logo.png" alt="RIT Logo" style="height: 24px; object-fit: contain;">
+      </div>
+      <h1 class="nav-title" style="font-size: 16px;">STUDENT PORTAL</h1>
     </div>
     <div style="font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--amber);">STUDENT SHUTTLE</div>
   </header>
@@ -883,11 +888,14 @@
      ========================================================================== -->
 <div id="driverView" class="view-container">
   <header class="nav-header">
-    <div class="nav-left">
+    <div class="nav-left" style="display: flex; align-items: center; gap: 12px;">
       <button class="back-btn" onclick="switchView('landing')">
         <span>&larr;</span> Back to Roles
       </button>
-      <h1 class="nav-title">RIT DRIVER CONSOLE</h1>
+      <div style="background: #ffffff; padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; justify-content: center; height: 32px; flex-shrink: 0;">
+        <img src="logo.png" alt="RIT Logo" style="height: 24px; object-fit: contain;">
+      </div>
+      <h1 class="nav-title" style="font-size: 16px;">DRIVER CONSOLE</h1>
     </div>
     <div id="driverHeaderSignout" class="hidden">
       <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="handleSignOut('driver')">Sign Out</button>
@@ -956,11 +964,14 @@
      ========================================================================== -->
 <div id="adminView" class="view-container">
   <header class="nav-header">
-    <div class="nav-left">
+    <div class="nav-left" style="display: flex; align-items: center; gap: 12px;">
       <button class="back-btn" onclick="switchView('landing')">
         <span>&larr;</span> Back to Roles
       </button>
-      <h1 class="nav-title">RIT ADMIN CONTROL</h1>
+      <div style="background: #ffffff; padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; justify-content: center; height: 32px; flex-shrink: 0;">
+        <img src="logo.png" alt="RIT Logo" style="height: 24px; object-fit: contain;">
+      </div>
+      <h1 class="nav-title" style="font-size: 16px;">ADMIN CONTROL</h1>
     </div>
     <div id="adminHeaderSignout" class="hidden">
       <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="handleSignOut('admin')">Sign Out</button>
