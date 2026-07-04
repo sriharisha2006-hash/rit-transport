@@ -776,9 +776,80 @@
 
   /* Shared Utility class for hidden items */
   .hidden { display: none !important; }
+
+  /* Premium Splash Screen Overlay */
+  #splashScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--navy);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+  }
+  #splashScreen.fade-out {
+    opacity: 0;
+    visibility: hidden;
+  }
+  .splash-logo-container {
+    background: #ffffff;
+    padding: 15px 30px;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    border: 2px solid var(--amber);
+    margin-bottom: 24px;
+    animation: splashPulse 2s infinite ease-in-out;
+  }
+  .splash-logo {
+    height: 90px;
+    display: block;
+    object-fit: contain;
+  }
+  @keyframes splashPulse {
+    0% { transform: scale(1); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); }
+    50% { transform: scale(1.03); box-shadow: 0 12px 40px rgba(245, 166, 35, 0.25); }
+    100% { transform: scale(1); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); }
+  }
+  .splash-loader {
+    width: 40px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+  .splash-loader-bar {
+    width: 40%;
+    height: 100%;
+    background: var(--amber);
+    position: absolute;
+    left: -40%;
+    border-radius: 3px;
+    animation: splashLoad 1.5s infinite ease-in-out;
+  }
+  @keyframes splashLoad {
+    0% { left: -40%; }
+    50% { left: 100%; }
+    100% { left: 100%; }
+  }
 </style>
 </head>
 <body>
+
+<!-- Premium Splash Screen Overlay -->
+<div id="splashScreen">
+  <div class="splash-logo-container">
+    <img src="logo.png" alt="RIT Logo" class="splash-logo">
+  </div>
+  <div class="splash-loader">
+    <div class="splash-loader-bar"></div>
+  </div>
+</div>
 
 <!-- Dynamic Full Screen Background Wrapper -->
 <div class="bg-wrapper" id="portalBackground"></div>
@@ -2036,15 +2107,24 @@ async function removeAdminAssignment(deleteParam) {
 }
 
 // ==========================================================================
-// PWA SERVICE WORKER REGISTRATION
+// PWA SERVICE WORKER REGISTRATION & SPLASH SCREEN DISMISSAL
 // ==========================================================================
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
+window.addEventListener('load', () => {
+  if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
       .then((reg) => console.log('[PWA] Service Worker registered successfully:', reg.scope))
       .catch((err) => console.error('[PWA] Service Worker registration failed:', err));
-  });
-}
+  }
+  
+  // Dismiss Custom Splash Screen
+  setTimeout(() => {
+    const splash = document.getElementById('splashScreen');
+    if (splash) {
+      splash.classList.add('fade-out');
+      setTimeout(() => splash.remove(), 500);
+    }
+  }, 1200);
+});
 
 
 
