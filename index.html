@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#12213D">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="logo.png">
-<link rel="icon" type="image/png" href="logo.png">
+
 <title>RIT Transport Hub</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -796,25 +795,7 @@
     opacity: 0;
     visibility: hidden;
   }
-  .splash-logo-container {
-    background: #ffffff;
-    padding: 15px 30px;
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    border: 2px solid var(--amber);
-    margin-bottom: 24px;
-    animation: splashPulse 2s infinite ease-in-out;
-  }
-  .splash-logo {
-    height: 90px;
-    display: block;
-    object-fit: contain;
-  }
-  @keyframes splashPulse {
-    0% { transform: scale(1); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); }
-    50% { transform: scale(1.03); box-shadow: 0 12px 40px rgba(245, 166, 35, 0.25); }
-    100% { transform: scale(1); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); }
-  }
+
   .splash-loader {
     width: 40px;
     height: 6px;
@@ -843,9 +824,7 @@
 
 <!-- Premium Splash Screen Overlay -->
 <div id="splashScreen">
-  <div class="splash-logo-container">
-    <img src="logo.png" alt="RIT Logo" class="splash-logo">
-  </div>
+  <h2 style="color: #ffffff; font-family: 'Oswald', sans-serif; letter-spacing: 2px; margin-bottom: 24px;">RIT TRANSPORT</h2>
   <div class="splash-loader">
     <div class="splash-loader-bar"></div>
   </div>
@@ -863,9 +842,6 @@
      ========================================================================== -->
 <div id="landingView" class="view-container" style="display: flex;">
   <div class="landing-hero" style="display: flex; flex-direction: column; align-items: center;">
-    <div style="background: #ffffff; padding: 10px 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px; border: 1.5px solid var(--amber);">
-      <img src="logo.png" alt="RIT Logo" style="height: 60px; display: block; object-fit: contain;">
-    </div>
     <span class="badge">Rajalakshmi Institute of Technology</span>
     <h1>RIT Transport Hub</h1>
     <p>Select your dashboard to search student shuttles, watch live bus locations, or manage routes and assignments.</p>
@@ -905,9 +881,6 @@
       <button class="back-btn" onclick="switchView('landing')">
         <span>&larr;</span> Back to Roles
       </button>
-      <div style="background: #ffffff; padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; justify-content: center; height: 32px; flex-shrink: 0;">
-        <img src="logo.png" alt="RIT Logo" style="height: 24px; object-fit: contain;">
-      </div>
       <h1 class="nav-title" style="font-size: 16px;">STUDENT PORTAL</h1>
     </div>
     <div style="font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--amber);">STUDENT SHUTTLE</div>
@@ -963,9 +936,6 @@
       <button class="back-btn" onclick="switchView('landing')">
         <span>&larr;</span> Back to Roles
       </button>
-      <div style="background: #ffffff; padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; justify-content: center; height: 32px; flex-shrink: 0;">
-        <img src="logo.png" alt="RIT Logo" style="height: 24px; object-fit: contain;">
-      </div>
       <h1 class="nav-title" style="font-size: 16px;">DRIVER CONSOLE</h1>
     </div>
     <div id="driverHeaderSignout" class="hidden">
@@ -1039,9 +1009,6 @@
       <button class="back-btn" onclick="switchView('landing')">
         <span>&larr;</span> Back to Roles
       </button>
-      <div style="background: #ffffff; padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; justify-content: center; height: 32px; flex-shrink: 0;">
-        <img src="logo.png" alt="RIT Logo" style="height: 24px; object-fit: contain;">
-      </div>
       <h1 class="nav-title" style="font-size: 16px;">ADMIN CONTROL</h1>
     </div>
     <div id="adminHeaderSignout" class="hidden">
