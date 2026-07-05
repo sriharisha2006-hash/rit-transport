@@ -818,6 +818,59 @@
     50% { left: 100%; }
     100% { left: 100%; }
   }
+  /* Active stop highlight and bus-badge styling */
+  .stop-row.bus-at-stop {
+    background: rgba(31, 122, 92, 0.08); /* light green matching var(--ontime) */
+    border-radius: 6px;
+    margin: 2px 0;
+  }
+  .stop-row.bus-at-stop .stop-dot {
+    background: var(--ontime) !important;
+    box-shadow: 0 0 0 0 rgba(31, 122, 92, 0.4);
+    animation: pulse-stop-dot 1.5s infinite;
+  }
+  @keyframes pulse-stop-dot {
+    0% { box-shadow: 0 0 0 0 rgba(31, 122, 92, 0.6); }
+    70% { box-shadow: 0 0 0 8px rgba(31, 122, 92, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(31, 122, 92, 0); }
+  }
+  .bus-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 10px;
+    padding: 2px 6px;
+    font-size: 11px;
+    background: #E8F5E9; /* light green */
+    color: var(--ontime);
+    border-radius: 4px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    border: 1px solid #C8E6C9;
+    animation: pulse-bg 2s infinite;
+  }
+  @keyframes pulse-bg {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+
+  /* Clear Google Maps overlay styling */
+  .live-map div.gm-style > div:nth-child(2),
+  .live-map div.gm-style > div:nth-child(3),
+  .live-map .gm-err-container,
+  .live-map .gm-err-content,
+  .live-map [style*="background-color: rgba(0, 0, 0, 0.45)"],
+  .live-map [style*="background-color: rgba(0, 0, 0, 0.5)"] {
+    display: none !important;
+  }
+  .live-map div.gm-style > div:first-child {
+    opacity: 1 !important;
+  }
+  .live-map img {
+    opacity: 1 !important;
+    filter: none !important;
+  }
 </style>
 </head>
 <body>
@@ -1113,6 +1166,11 @@ let livePollingInterval = null;
 // Google Maps dynamic script loader & helper functions
 let googleMapsPromise = null;
 
+// Gracefully handle Google Maps Auth Failure (e.g. referrer/billing errors)
+window.gm_authFailure = function() {
+  console.warn("Google Maps auth failed. Referrer/billing issue detected. Using clear fallback styling.");
+};
+
 async function getGoogleMapsApiKey() {
   if (window.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) return window.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (window.VITE_GOOGLE_MAPS_API_KEY) return window.VITE_GOOGLE_MAPS_API_KEY;
@@ -1201,6 +1259,14 @@ function computeNearestStop(route, busLat, busLng) {
   });
   
   return nearestStop;
+}
+
+function computeIsBusAtStop(stop, live) {
+  if (!live || !live.active || stop.lat === null || stop.lat === undefined || stop.lng === null || stop.lng === undefined) {
+    return false;
+  }
+  const dist = getHaversineDistance(live.lat, live.lng, stop.lat, stop.lng);
+  return dist <= 0.15; // 150 meters
 }
 
 function updateProximityDisplay(route, live) {
@@ -1451,6 +1517,55 @@ async function pollLive() {
         const route = routes.find(r => r.id === routeId);
         if (route) {
           updateProximityDisplay(route, live);
+
+          // Update stops timeline dynamically without re-rendering card
+          const stopsContainer = document.getElementById(`stops-${routeId}`);
+          if (stopsContainer) {
+            const stopRows = stopsContainer.querySelectorAll('.stop-row');
+            route.stops.forEach((s, idx) => {
+              const isBusHere = computeIsBusAtStop(s, live);
+              const row = stopRows[idx];
+              if (row) {
+                const nameEl = row.querySelector('.stop-name');
+                const hasBadge = nameEl ? nameEl.querySelector('.bus-badge') : null;
+                if (isBusHere) {
+                  row.classList.add('bus-at-stop');
+                  if (!hasBadge && nameEl) {
+                    const badgeSpan = document.createElement('span');
+                    badgeSpan.className = 'bus-badge';
+                    badgeSpan.innerHTML = '🚌 Bus here';
+                    nameEl.appendChild(badgeSpan);
+                  }
+                } else {
+                  row.classList.remove('bus-at-stop');
+                  if (hasBadge) {
+                    hasBadge.remove();
+                  }
+                }
+              }
+            });
+          }
+
+          // Update stop markers on the Google Map dynamically
+          if (inst.stopMarkers) {
+            inst.stopMarkers.forEach(sm => {
+              const stopObj = { lat: sm.lat, lng: sm.lng };
+              const isBusHere = computeIsBusAtStop(stopObj, live);
+              const stopIconSvg = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+                  <circle cx="12" cy="12" r="7" fill="${isBusHere ? '#1F7A5C' : '#F5A623'}" stroke="#FFFFFF" stroke-width="2"/>
+                  ${isBusHere ? '<circle cx="12" cy="12" r="10" fill="none" stroke="#1F7A5C" stroke-width="1.5"><animate attributeName="r" values="7;11" dur="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur="1.5s" repeatCount="indefinite"/></circle>' : ''}
+                </svg>
+              `;
+              sm.marker.setIcon({
+                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(stopIconSvg.trim()),
+                size: new google.maps.Size(20, 20),
+                scaledSize: new google.maps.Size(20, 20),
+                origin: new google.maps.Point(0, 0),
+                anchor: new google.maps.Point(10, 10)
+              });
+            });
+          }
         }
       }
     });
@@ -1551,14 +1666,20 @@ function renderStudentView(query) {
         <div class="live-map" id="map-${route.id}"></div>
         <div class="live-updated" id="updated-${route.id}">${timeAgo(live.updated_at)}</div>
       ` : ''}
-      <div class="stops">
-        ${route.stops.map(s => `
-          <div class="stop-row">
-            <div class="stop-dot"></div>
-            <div class="stop-name ${q !== '' && s.name.toLowerCase().includes(q) ? 'match' : ''}">${s.name}</div>
-            <div class="stop-time">${s.time}</div>
-          </div>
-        `).join('')}
+      <div class="stops" id="stops-${route.id}">
+        ${route.stops.map(s => {
+          const isBusHere = isLive && computeIsBusAtStop(s, live);
+          return `
+            <div class="stop-row ${isBusHere ? 'bus-at-stop' : ''}">
+              <div class="stop-dot"></div>
+              <div class="stop-name ${q !== '' && s.name.toLowerCase().includes(q) ? 'match' : ''}">
+                ${s.name}
+                ${isBusHere ? '<span class="bus-badge">🚌 Bus here</span>' : ''}
+              </div>
+              <div class="stop-time">${s.time}</div>
+            </div>
+          `;
+        }).join('')}
       </div>
     `;
 
@@ -1590,7 +1711,7 @@ function renderStudentView(query) {
       loadGoogleMapsAPI().then(() => {
         if (mapInstances[route.id]) return;
         
-        // Custom bus icon matching navy/amber
+        // Custom bus icon matching navy/amber (scaledSize added for sharpness)
         const markerSvg = `
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36">
             <circle cx="12" cy="12" r="11" fill="#12213D" stroke="#F5A623" stroke-width="2"/>
@@ -1615,15 +1736,44 @@ function renderStudentView(query) {
           position: { lat: live.lat, lng: live.lng },
           map: map,
           icon: {
-            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(markerSvg),
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(markerSvg.trim()),
             size: new google.maps.Size(36, 36),
+            scaledSize: new google.maps.Size(36, 36),
             origin: new google.maps.Point(0, 0),
             anchor: new google.maps.Point(18, 18)
           },
           title: `Route ${route.id} Live Bus`
         });
 
-        mapInstances[route.id] = { map, marker };
+        // Initialize stop markers on the map
+        const stopMarkers = [];
+        route.stops.forEach(stop => {
+          if (stop.lat !== null && stop.lat !== undefined && stop.lng !== null && stop.lng !== undefined) {
+            const isBusHere = computeIsBusAtStop(stop, live);
+            const stopIconSvg = `
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+                <circle cx="12" cy="12" r="7" fill="${isBusHere ? '#1F7A5C' : '#F5A623'}" stroke="#FFFFFF" stroke-width="2"/>
+                ${isBusHere ? '<circle cx="12" cy="12" r="10" fill="none" stroke="#1F7A5C" stroke-width="1.5"><animate attributeName="r" values="7;11" dur="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur="1.5s" repeatCount="indefinite"/></circle>' : ''}
+              </svg>
+            `;
+            
+            const stopMarker = new google.maps.Marker({
+              position: { lat: stop.lat, lng: stop.lng },
+              map: map,
+              icon: {
+                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(stopIconSvg.trim()),
+                size: new google.maps.Size(20, 20),
+                scaledSize: new google.maps.Size(20, 20),
+                origin: new google.maps.Point(0, 0),
+                anchor: new google.maps.Point(10, 10)
+              },
+              title: stop.name
+            });
+            stopMarkers.push({ stopId: stop.id, stopName: stop.name, marker: stopMarker, lat: stop.lat, lng: stop.lng });
+          }
+        });
+
+        mapInstances[route.id] = { map, marker, stopMarkers };
       }).catch(err => {
         console.error(err);
         mapEl.innerHTML = `<div style="padding: 20px; color: var(--danger); text-align: center;">Failed to load Google Maps. Please verify your API Key.</div>`;
