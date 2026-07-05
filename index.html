@@ -856,20 +856,20 @@
   }
 
   /* Clear Google Maps overlay styling */
-  .live-map div.gm-style > div:nth-child(2),
-  .live-map div.gm-style > div:nth-child(3),
-  .live-map .gm-err-container,
-  .live-map .gm-err-content,
-  .live-map .gm-err-icon,
-  .live-map .gm-err-title,
-  .live-map .gm-err-message,
-  .live-map [style*="background-color: rgba(0, 0, 0, 0.45)"],
-  .live-map [style*="background-color: rgba(0, 0, 0, 0.5)"],
-  .live-map [style*="background: rgba(0, 0, 0, 0.45)"],
-  .live-map [style*="background: rgba(0, 0, 0, 0.5)"] {
+  .gm-err-container,
+  .gm-err-content,
+  .gm-err-icon,
+  .gm-err-title,
+  .gm-err-message,
+  div.gm-style > div:nth-child(2),
+  div.gm-style > div:nth-child(3),
+  [style*="background-color: rgba(0, 0, 0, 0.45)"],
+  [style*="background-color: rgba(0, 0, 0, 0.5)"],
+  [style*="background: rgba(0, 0, 0, 0.45)"],
+  [style*="background: rgba(0, 0, 0, 0.5)"] {
     display: none !important;
   }
-  .live-map div.gm-style > div:first-child {
+  div.gm-style > div:first-child {
     opacity: 1 !important;
   }
   .live-map img, 
@@ -1175,7 +1175,30 @@ let googleMapsPromise = null;
 
 // Gracefully handle Google Maps Auth Failure (e.g. referrer/billing errors)
 window.gm_authFailure = function() {
-  console.warn("Google Maps auth failed. Referrer/billing issue detected. Using clear fallback styling.");
+  console.warn("Google Maps auth failed. Suppressing error dialog popups.");
+  
+  // Suppress popups continuously
+  const suppressInterval = setInterval(() => {
+    // Hide gm-err-container elements
+    document.querySelectorAll('.gm-err-container, .gm-err-content, .gm-err-icon, .gm-err-title, .gm-err-message').forEach(el => {
+      el.style.display = 'none';
+      el.style.setProperty('display', 'none', 'important');
+      el.style.visibility = 'hidden';
+    });
+    
+    // Scan all divs to find those containing the error message texts and hide them
+    document.querySelectorAll('div').forEach(div => {
+      const text = div.textContent || '';
+      if (text.includes("can't load Google Maps correctly") || text.includes("Do you own this website")) {
+        div.style.display = 'none';
+        div.style.setProperty('display', 'none', 'important');
+        div.style.visibility = 'hidden';
+      }
+    });
+  }, 100);
+  
+  // Stop interval after 10s
+  setTimeout(() => clearInterval(suppressInterval), 10000);
 };
 
 async function getGoogleMapsApiKey() {

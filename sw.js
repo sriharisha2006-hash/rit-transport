@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rit-transport-v6';
+const CACHE_NAME = 'rit-transport-v7';
 const ASSETS = [
   './',
   './index.html',
