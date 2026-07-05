@@ -860,14 +860,21 @@
   .live-map div.gm-style > div:nth-child(3),
   .live-map .gm-err-container,
   .live-map .gm-err-content,
+  .live-map .gm-err-icon,
+  .live-map .gm-err-title,
+  .live-map .gm-err-message,
   .live-map [style*="background-color: rgba(0, 0, 0, 0.45)"],
-  .live-map [style*="background-color: rgba(0, 0, 0, 0.5)"] {
+  .live-map [style*="background-color: rgba(0, 0, 0, 0.5)"],
+  .live-map [style*="background: rgba(0, 0, 0, 0.45)"],
+  .live-map [style*="background: rgba(0, 0, 0, 0.5)"] {
     display: none !important;
   }
   .live-map div.gm-style > div:first-child {
     opacity: 1 !important;
   }
-  .live-map img {
+  .live-map img, 
+  .live-map div[style*="filter"], 
+  .live-map div[style*="opacity"] {
     opacity: 1 !important;
     filter: none !important;
   }
