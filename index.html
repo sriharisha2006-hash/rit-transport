@@ -1158,6 +1158,29 @@
      E. APPLICATION SCRIPTS
      ========================================================================== -->
 <script>
+// Force evict stale PWA caches when version updates
+const CURRENT_VERSION = 'v7';
+if (localStorage.getItem('app_version') !== CURRENT_VERSION) {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for (let reg of registrations) {
+        reg.unregister();
+      }
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          for (let name of names) caches.delete(name);
+        });
+      }
+      localStorage.setItem('app_version', CURRENT_VERSION);
+      setTimeout(() => {
+        window.location.reload(true);
+      }, 300);
+    });
+  } else {
+    localStorage.setItem('app_version', CURRENT_VERSION);
+  }
+}
+
 const SUPABASE_URL = "https://gfhwnoujoftllkdfqnig.supabase.co";
 const SUPABASE_KEY = "sb_publishable_JL3x_L2WT1R4-iyHqj_n8A_0smkp0Yk";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
